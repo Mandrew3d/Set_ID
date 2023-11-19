@@ -4,13 +4,16 @@ bl_info = {
     "version": (1, 2),
     "blender": (4, 0, 0),
     "location": "View3D > UI > Set-ID",
-    "description": "Simple addon for setting ID names",
+    "description": "Addon for setting ID names",
     "warning": "",
-    "doc_url": "",
+    "doc_url": "https://github.com/Mandrew3d/Set_ID",
     "category": "Mods",
 }
 
 import bpy, math, random, colorsys, os
+import addon_utils
+import requests
+
 from bpy.utils import register_class, unregister_class
 from bpy.types import (
     Header,
