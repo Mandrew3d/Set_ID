@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 1),
+    "version": (1, 2),
     "blender": (4, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Simple addon for setting ID names",
@@ -1161,7 +1161,11 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         #settings
         row = layout.row()
         row.menu("VIEW3D_MT_SETID_Settings", icon = "PREFERENCES", text = '' )
-                    
+        
+        ver = bl_info.get('version')
+        ver = str(ver[0])+('.')+str(ver[1])
+        row.label(text = 'Version: ' + ver)    
+        
 class SETID_Preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
