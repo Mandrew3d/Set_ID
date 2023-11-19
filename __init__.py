@@ -16,11 +16,12 @@ from bpy.types import (
     Header,
     Menu,
     Panel,
+    Operator,
 )
 
 #Slider
 class Slider(bpy.types.PropertyGroup):
-    my_float : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
+    col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
     
 
 #Set name index str
@@ -60,7 +61,7 @@ def open_folder(self, context):
     
     os.startfile(path)
 
-class Open_Folder(bpy.types.Operator):
+class Open_Folder(Operator):
     bl_idname = "setid.open_folder"
     bl_label = "Open Folder"
     
@@ -76,7 +77,7 @@ def low_poly(self, context):
 
 
 #Collection creation
-    indexcol=bpy.context.scene.my_tool.my_float
+    indexcol=bpy.context.scene.my_tool.col_id
     namecollp="Low Poly_" + str(indexcol)
     if not bpy.data.collections.get(namecollp):
         bpy.data.scenes["Scene"].collection.children.link(bpy.data.collections.new(namecollp))
@@ -105,7 +106,7 @@ def low_poly(self, context):
     bpy.data.collections.remove(Vrem)
 
     
-class Low_poly(bpy.types.Operator):
+class Low_poly(Operator):
     bl_idname = "lp.poly"
     bl_label = "Low Poly"
 
@@ -119,7 +120,7 @@ def high_poly(self, context):
 
 
 #Collection creation
-    indexcol=bpy.context.scene.my_tool.my_float
+    indexcol=bpy.context.scene.my_tool.col_id
     namecolhp="High Poly_" + str(indexcol)
     if not bpy.data.collections.get(namecolhp):
         bpy.data.scenes["Scene"].collection.children.link(bpy.data.collections.new(namecolhp))
@@ -148,7 +149,7 @@ def high_poly(self, context):
     bpy.data.collections.remove(Vrem)
 
     
-class High_poly(bpy.types.Operator):
+class High_poly(Operator):
     bl_idname = "hp.poly"
     bl_label = "High Poly"
 
@@ -158,7 +159,7 @@ class High_poly(bpy.types.Operator):
         return {'FINISHED'}    
 #LP Viz
 def lpviz(self, context):
-    indexcol=bpy.context.scene.my_tool.my_float
+    indexcol=bpy.context.scene.my_tool.col_id
     colname = "Low Poly_" + str(indexcol)
 
     contcol = bpy.context.view_layer.layer_collection.children[colname].hide_viewport
@@ -171,7 +172,7 @@ def lpviz(self, context):
         bpy.context.scene.lp_g.lp_gal_viz = False
         bpy.context.view_layer.layer_collection.children[colname].hide_viewport = True
         
-class LPCol_viz(bpy.types.Operator):
+class LPCol_viz(Operator):
     bl_idname = "setid.lpviz"
     bl_label = "Show LP"
     
@@ -183,7 +184,7 @@ class LPCol_viz(bpy.types.Operator):
         return {'FINISHED'}        
 #HP Viz
 def hpviz(self, context):
-    indexcol=bpy.context.scene.my_tool.my_float
+    indexcol=bpy.context.scene.my_tool.col_id
     colname = "High Poly_" + str(indexcol)
 
     contcol = bpy.context.view_layer.layer_collection.children[colname].hide_viewport
@@ -195,7 +196,7 @@ def hpviz(self, context):
         bpy.context.scene.lp_g.hp_gal_viz = False
         bpy.context.view_layer.layer_collection.children[colname].hide_viewport = True
         
-class HPCol_viz(bpy.types.Operator):
+class HPCol_viz(Operator):
     bl_idname = "setid.hpviz"
     bl_label = "Show HP"
     
@@ -214,10 +215,10 @@ def set_name(self, context):
     nl = str(bpy.context.scene.mesh_l.my_lpstr)
     nh = str(bpy.context.scene.mesh_h.my_hpstr)
     
-    indexcol=bpy.context.scene.my_tool.my_float
+    indexcol=bpy.context.scene.my_tool.col_id
     namecollp='Low Poly_' + str(indexcol)
     
-    indexcol=bpy.context.scene.my_tool.my_float
+    indexcol=bpy.context.scene.my_tool.col_id
     namecolhp='High Poly_' + str(indexcol)
 
     lpcoll = namecollp
@@ -268,7 +269,7 @@ def set_name(self, context):
  
 
 
-class Set_name(bpy.types.Operator):
+class Set_name(Operator):
     bl_idname = "set.name"
     bl_label = "Set Names"
 
@@ -300,7 +301,7 @@ def copy_name(self, context):
  
 
 
-class Copy_name(bpy.types.Operator):
+class Copy_name(Operator):
     bl_idname = "set.copy_name"
     bl_label = "Attach"
 
@@ -315,7 +316,7 @@ def exp_fbx(context):
     trishp = bpy.context.scene.lp_g.hp_tris
     
     if bpy.context.scene.lp_g.lp_gal == True:
-        indexcol = bpy.context.scene.my_tool.my_float 
+        indexcol = bpy.context.scene.my_tool.col_id 
         namecollp = str("Low Poly_" + str(indexcol))
 
 
@@ -336,7 +337,7 @@ def exp_fbx(context):
             path_mode='AUTO')
 
     if bpy.context.scene.lp_g.hp_gal == True: 
-        indexcol=bpy.context.scene.my_tool.my_float
+        indexcol=bpy.context.scene.my_tool.col_id
         namecolhp="High Poly_" + str(indexcol)
         path =  bpy.path.abspath(bpy.context.scene.path_s.my_path)
         collection = bpy.data.collections[namecolhp]
@@ -355,7 +356,7 @@ def exp_fbx(context):
             add_leaf_bones=False,
             path_mode='AUTO')
 
-class Export_fbx(bpy.types.Operator):
+class Export_fbx(Operator):
     bl_idname = "ex.fbx"
     bl_label = "Export FBX"
 
@@ -411,7 +412,7 @@ def trian_obj(context):
 
  
 
-class Triang_obj(bpy.types.Operator):
+class Triang_obj(Operator):
     bl_idname = "ex.triang"
     bl_label = "Triangulate"
 
@@ -630,7 +631,7 @@ def maps_con(self, context):
             mntn.remove(sorm)
             mntn.remove(fy)
             
-class Maps_Con(bpy.types.Operator):
+class Maps_Con(Operator):
     bl_idname = "ex.mapscon"
     bl_label = "Connect"
     exp = False
@@ -639,7 +640,7 @@ class Maps_Con(bpy.types.Operator):
         maps_con(self, context)
         return {'FINISHED'}
 
-class Maps_Exp(bpy.types.Operator):
+class Maps_Exp(Operator):
     bl_idname = "ex.mapsexp"
     bl_label = "For Export"
     exp = True 
@@ -712,7 +713,7 @@ def random_col(self,context):
 
  
 
-class Random_Col(bpy.types.Operator):
+class Random_Col(Operator):
     bl_idname = "ex.randomcol"
     bl_label = "Randomize"
 
@@ -738,7 +739,7 @@ def select_mat(context):
 
  
 
-class Select_Mat(bpy.types.Operator):
+class Select_Mat(Operator):
     bl_idname = "ex.selmat"
     bl_label = "Material"
 
@@ -784,7 +785,7 @@ def select_index(self, context):
     target = name[:ind]
     print (target)
                         
-   # coln = "Low Poly_" + str(bpy.context.scene.my_tool.my_float)
+   # coln = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
     for obj in bpy.data.collections[coln].objects:
         if obj.name[:ind] == target:
             bpy.data.objects[obj.name].select_set(True) 
@@ -792,7 +793,7 @@ def select_index(self, context):
         if obj.name[:ind] == target:
             bpy.data.objects[obj.name].select_set(True) 
 
-class Select_By_index(bpy.types.Operator):
+class Select_By_index(Operator):
     bl_idname = "setid.selbyid"
     bl_label = "Name"
 
@@ -808,12 +809,12 @@ def sel_ngon(context):
 
         bpy.ops.mesh.select_face_by_sides(number=4, type='GREATER', extend=False)
     else:
-        for obj in bpy.data.collections["Low Poly_" + str(bpy.context.scene.my_tool.my_float)].objects:
+        for obj in bpy.data.collections["Low Poly_" + str(bpy.context.scene.my_tool.col_id)].objects:
             obj.select_set(True)
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
         bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='FACE')
         bpy.ops.mesh.select_face_by_sides(number=4, type='GREATER', extend=False)
-class Sel_ngones(bpy.types.Operator):
+class Sel_ngones(Operator):
     bl_idname = "setid.selng"
     bl_label = "Select N-Gones"
     
@@ -834,7 +835,7 @@ def sel_col(context):
     for objs in accol:
         objs.select_set(True)
 
-class Sel_col(bpy.types.Operator):   
+class Sel_col(Operator):   
     bl_idname = "ex.selcol"
     bl_label = "SelCol"
     
@@ -866,7 +867,7 @@ def get_addon_folder():
 
 def update_addon(self):
     #get raw from git
-    url = 'https://raw.githubusercontent.com/Mandrew3d/Master_Instance/main/__init__.py'
+    url = 'https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py'
     
     response = requests.get(url, stream=True)
 
@@ -923,7 +924,7 @@ class SETID_Addon_Updater(Operator):
  
 
 #Menu Settings
-class VIEW3D_MT_InstanceM_Settings(bpy.types.Menu):
+class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
     bl_label = "Instance Master Settings"
     
     def draw(self, context):
@@ -996,7 +997,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         
         row.operator("lp.poly", icon='MESH_CIRCLE')
         presslp = bpy.context.scene.lp_g.lp_gal_viz
-        colchek = "Low Poly_" + str(bpy.context.scene.my_tool.my_float)
+        colchek = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
         if colchek in bpy.data.collections:
             dislp = True
         else:
@@ -1006,7 +1007,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row.operator("hp.poly", icon='MESH_UVSPHERE')
         
         presshp = bpy.context.scene.lp_g.hp_gal_viz
-        colchek = "High Poly_" + str(bpy.context.scene.my_tool.my_float)
+        colchek = "High Poly_" + str(bpy.context.scene.my_tool.col_id)
         if colchek in bpy.data.collections:
             dishp = True
         else:
@@ -1014,7 +1015,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
              
         row.operator("setid.hpviz", icon = 'HIDE_OFF', text = "",depress = presshp, emboss = dishp)
         
-        layout.prop(mytool,"my_float")
+        layout.prop(mytool,"col_id")
         
         # Set name
         box = layout.box()
@@ -1135,11 +1136,11 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         layout.label(text="Triangulated: "+ str(ismod) + "/"+ str(selcount))
         
         #Poly count
-        colname = "Low Poly_" + str(bpy.context.scene.my_tool.my_float)
+        colname = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
         layout.label(text="Polycount of "+ str(colname) + ":" )
         tris, polys, ngones = 0,0,0
         
-        #colname = "Low Poly_" + str(bpy.context.scene.my_tool.my_float)
+        #colname = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
         if colname in bpy.data.collections:
             dg = bpy.context.evaluated_depsgraph_get()
             #objects = 
@@ -1156,8 +1157,20 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         if ngones > 0:
             row = layout.row(align = True)
             row.operator("setid.selng")
-            
         
+        #settings
+        row = layout.row()
+        row.menu("VIEW3D_MT_SETID_Settings", icon = "PREFERENCES", text = '' )
+                    
+class SETID_Preferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+
+ 
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.operator("setid.addon_upd", icon = "URL")
+                
 classes = [
     Open_Folder,
     Low_poly,
@@ -1182,9 +1195,11 @@ classes = [
     Select_Mat,
     Select_By_index,
     Sel_ngones,
-    Sel_col
+    Sel_col,
     #SELECT_OT_collection
-    
+    SETID_Addon_Updater,
+    VIEW3D_MT_SETID_Settings,
+    SETID_Preferences,
 ]
 
 def register():
