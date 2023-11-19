@@ -1048,10 +1048,14 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         mytool = scene.id_slider
        
         # New_Collection  
-        layout.label(text="Set collection:")
+        box = layout.box()
+        box.label(text="Set collection:")
         
+        col = box.column(align = True)
         row = layout.row(align = True) 
-        row_new = layout.row()
+        
+        row = col.row(align = True)
+        #row_new = layout.row()
         
         row.operator("lp.poly", icon='MESH_CIRCLE')
         presslp = bpy.context.scene.lp_g.lp_gal_viz
@@ -1073,7 +1077,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
              
         row.operator("setid.hpviz", icon = 'HIDE_OFF', text = "",depress = presshp, emboss = dishp)
         
-        layout.prop(mytool,"col_id")
+        col.prop(mytool,"col_id")
         
         # Set name
         box = layout.box()
@@ -1125,7 +1129,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         #layout.label(text="Export path:")
         row = box.row(align = True)
         row.prop(scene.path_s, "exp_path") # EXPORT
-        open_ep = row.operator("setid.open_folder", text = '', icon = 'EVENT_OS')
+        open_ep = row.operator("setid.open_folder", text = '', icon = 'WORKSPACE')
        
         open_ep.path = bpy.context.scene.path_s.exp_path
         
@@ -1149,7 +1153,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row = layout.row(align = True)
         row.prop(scene.path_s, "exp_pathmat") # Materials attaching
 
-        open_cp = row.operator("setid.open_folder", text = '', icon = 'EVENT_OS')
+        open_cp = row.operator("setid.open_folder", text = '', icon = 'WORKSPACE')
         open_cp.path = bpy.context.scene.path_s.exp_pathmat
                 
         # Connect
