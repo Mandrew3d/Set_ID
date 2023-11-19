@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 2),
+    "version": (1, 3),
     "blender": (4, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
