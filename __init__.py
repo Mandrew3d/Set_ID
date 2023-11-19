@@ -1,16 +1,19 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 1),
+    "version": (1, 3),
     "blender": (4, 0, 0),
     "location": "View3D > UI > Set-ID",
-    "description": "Simple addon for setting ID names",
+    "description": "Addon for setting ID names",
     "warning": "",
-    "doc_url": "",
+    "doc_url": "https://github.com/Mandrew3d/Set_ID",
     "category": "Mods",
 }
 
 import bpy, math, random, colorsys, os
+import addon_utils
+import requests
+
 from bpy.utils import register_class, unregister_class
 from bpy.types import (
     Header,
@@ -52,8 +55,8 @@ class HpLP_gal(bpy.types.PropertyGroup):
     hp_gal_viz : bpy.props.BoolProperty(name = " High poly Viz", default=True )           
 
 class Path_m(bpy.types.PropertyGroup):
-    my_path : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
-    my_pathmat : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
+    exp_path : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
+    exp_pathmat : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
 
 #Open folder
 def open_folder(self, context):
@@ -77,7 +80,7 @@ def low_poly(self, context):
 
 
 #Collection creation
-    indexcol=bpy.context.scene.my_tool.col_id
+    indexcol=bpy.context.scene.id_slider.col_id
     namecollp="Low Poly_" + str(indexcol)
     if not bpy.data.collections.get(namecollp):
         bpy.data.scenes["Scene"].collection.children.link(bpy.data.collections.new(namecollp))
@@ -120,7 +123,7 @@ def high_poly(self, context):
 
 
 #Collection creation
-    indexcol=bpy.context.scene.my_tool.col_id
+    indexcol=bpy.context.scene.id_slider.col_id
     namecolhp="High Poly_" + str(indexcol)
     if not bpy.data.collections.get(namecolhp):
         bpy.data.scenes["Scene"].collection.children.link(bpy.data.collections.new(namecolhp))
@@ -159,7 +162,7 @@ class High_poly(Operator):
         return {'FINISHED'}    
 #LP Viz
 def lpviz(self, context):
-    indexcol=bpy.context.scene.my_tool.col_id
+    indexcol=bpy.context.scene.id_slider.col_id
     colname = "Low Poly_" + str(indexcol)
 
     contcol = bpy.context.view_layer.layer_collection.children[colname].hide_viewport
@@ -184,7 +187,7 @@ class LPCol_viz(Operator):
         return {'FINISHED'}        
 #HP Viz
 def hpviz(self, context):
-    indexcol=bpy.context.scene.my_tool.col_id
+    indexcol=bpy.context.scene.id_slider.col_id
     colname = "High Poly_" + str(indexcol)
 
     contcol = bpy.context.view_layer.layer_collection.children[colname].hide_viewport
@@ -215,10 +218,10 @@ def set_name(self, context):
     nl = str(bpy.context.scene.mesh_l.my_lpstr)
     nh = str(bpy.context.scene.mesh_h.my_hpstr)
     
-    indexcol=bpy.context.scene.my_tool.col_id
+    indexcol=bpy.context.scene.id_slider.col_id
     namecollp='Low Poly_' + str(indexcol)
     
-    indexcol=bpy.context.scene.my_tool.col_id
+    indexcol=bpy.context.scene.id_slider.col_id
     namecolhp='High Poly_' + str(indexcol)
 
     lpcoll = namecollp
@@ -308,7 +311,36 @@ class Copy_name(Operator):
     def execute(self, context):
         copy_name(self, context)
         return {'FINISHED'}
+
+
+#Hide Named
+def hide_named(self, context):
+    col_id = bpy.context.scene.id_slider.col_id
     
+    hp_col_name = 'High Poly_' + str(col_id)
+    lp_col_name = 'Low Poly_' + str(col_id)
+    
+    hp_col = bpy.data.collections[hp_col_name]
+    lp_col = bpy.data.collections[lp_col_name]
+    
+    for ob in hp_col.objects:
+        if '_high_' in ob.name:
+            ob.hide_set(True)
+            #print(ob.name)
+    for ob in lp_col.objects:
+        if '_low_' in ob.name:
+            ob.hide_set(True)
+    
+    
+class Hide_named(Operator):
+    bl_idname = "setid.hide_named"
+    bl_label = "Hide Named"
+
+    def execute(self, context):
+        hide_named(self, context)
+        return {'FINISHED'}
+    
+        
 def exp_fbx(context):
 #export Lowpoly
 
@@ -316,11 +348,11 @@ def exp_fbx(context):
     trishp = bpy.context.scene.lp_g.hp_tris
     
     if bpy.context.scene.lp_g.lp_gal == True:
-        indexcol = bpy.context.scene.my_tool.col_id 
+        indexcol = bpy.context.scene.id_slider.col_id 
         namecollp = str("Low Poly_" + str(indexcol))
 
 
-        path =  bpy.path.abspath(bpy.context.scene.path_s.my_path)
+        path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
         collection = bpy.data.collections[namecollp]
         
 
@@ -337,9 +369,9 @@ def exp_fbx(context):
             path_mode='AUTO')
 
     if bpy.context.scene.lp_g.hp_gal == True: 
-        indexcol=bpy.context.scene.my_tool.col_id
+        indexcol=bpy.context.scene.id_slider.col_id
         namecolhp="High Poly_" + str(indexcol)
-        path =  bpy.path.abspath(bpy.context.scene.path_s.my_path)
+        path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
         collection = bpy.data.collections[namecolhp]
         
 
@@ -431,7 +463,7 @@ def in_list(str_, words):
 
 def maps_con(self, context):
     selob = bpy.context.selected_objects
-    path = bpy.path.abspath(bpy.context.scene.path_s.my_pathmat)
+    path = bpy.path.abspath(bpy.context.scene.path_s.exp_pathmat)
     exp = self.exp
 #    fcol = []
 #    for (root,dirs,files) in os.walk(path):
@@ -546,7 +578,7 @@ def maps_con(self, context):
         #add maps 
 
 #NEW
-        path = bpy.path.abspath(bpy.context.scene.path_s.my_pathmat)
+        path = bpy.path.abspath(bpy.context.scene.path_s.exp_pathmat)
 
         dir = os.listdir(path)
 
@@ -785,7 +817,7 @@ def select_index(self, context):
     target = name[:ind]
     print (target)
                         
-   # coln = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
+   # coln = "Low Poly_" + str(bpy.context.scene.id_slider.col_id)
     for obj in bpy.data.collections[coln].objects:
         if obj.name[:ind] == target:
             bpy.data.objects[obj.name].select_set(True) 
@@ -809,7 +841,7 @@ def sel_ngon(context):
 
         bpy.ops.mesh.select_face_by_sides(number=4, type='GREATER', extend=False)
     else:
-        for obj in bpy.data.collections["Low Poly_" + str(bpy.context.scene.my_tool.col_id)].objects:
+        for obj in bpy.data.collections["Low Poly_" + str(bpy.context.scene.id_slider.col_id)].objects:
             obj.select_set(True)
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
         bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='FACE')
@@ -925,7 +957,7 @@ class SETID_Addon_Updater(Operator):
 
 #Menu Settings
 class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
-    bl_label = "Instance Master Settings"
+    bl_label = "Set-ID Settings"
     
     def draw(self, context):
         
@@ -947,7 +979,33 @@ class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
             icon='CURRENT_FILE'
             )
         op.url = 'https://t.me/Mandrew3d'
+
+#Menu Set Names
+class VIEW3D_MT_SETID_SetName_Settings(bpy.types.Menu):
+    bl_label = "Set Name Settings"
+    
+    def draw(self, context):
         
+        layout = self.layout
+
+        scene = context.scene
+
+        layout.label(text="Settings:")
+        
+        
+        layout.separator()
+        col = layout.column()
+         
+                # Mesh suffix
+        layout.label(text="Mesh suffix:")
+        split = layout.split()
+        col = split.column(align=True)
+        col.label(text="Low poly")
+        col.label(text="High poly")
+        
+        col = split.column(align=True)
+        col.prop(scene.mesh_l, "my_lpstr")
+        col.prop(scene.mesh_h, "my_hpstr")       
                 
 #Header 
 def SELECT_HT_collection(self, context):
@@ -987,7 +1045,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         layout = self.layout
 
         scene = context.scene
-        mytool = scene.my_tool
+        mytool = scene.id_slider
        
         # New_Collection  
         layout.label(text="Set collection:")
@@ -997,7 +1055,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         
         row.operator("lp.poly", icon='MESH_CIRCLE')
         presslp = bpy.context.scene.lp_g.lp_gal_viz
-        colchek = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
+        colchek = "Low Poly_" + str(bpy.context.scene.id_slider.col_id)
         if colchek in bpy.data.collections:
             dislp = True
         else:
@@ -1007,7 +1065,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row.operator("hp.poly", icon='MESH_UVSPHERE')
         
         presshp = bpy.context.scene.lp_g.hp_gal_viz
-        colchek = "High Poly_" + str(bpy.context.scene.my_tool.col_id)
+        colchek = "High Poly_" + str(bpy.context.scene.id_slider.col_id)
         if colchek in bpy.data.collections:
             dishp = True
         else:
@@ -1019,7 +1077,10 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         
         # Set name
         box = layout.box()
-        box.label(text="Set names:")
+        row = box.row(align = True)
+        row.label(text="Set names:")
+        row.menu("VIEW3D_MT_SETID_SetName_Settings", icon = "PREFERENCES", text = '' )
+        
         scene = context.scene
         mystr = scene.st_name
         
@@ -1036,53 +1097,60 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row.prop(scene.ai_b,"my_hide")
         #col.label(text="")
         #col = split.column()
+        #row = col.row(align = True)
         row.prop(scene.ai_b,"my_autg")
             #Attach
         #row = layout.row(align = True)
         row = box.row(align = True)
         row.operator("set.copy_name") 
+        #hide named
+        row = box.row(align = True)
+        row.operator("setid.hide_named", icon = 'HIDE_ON')
         
-        # Mesh suffix
-        layout.label(text="Mesh suffix:")
-        split = layout.split()
-        col = split.column(align=True)
-        col.label(text="Low poly")
-        col.label(text="High poly")
         
-        col = split.column(align=True)
-        col.prop(scene.mesh_l, "my_lpstr")
-        col.prop(scene.mesh_h, "my_hpstr")
+#        # Mesh suffix
+#        layout.label(text="Mesh suffix:")
+#        split = layout.split()
+#        col = split.column(align=True)
+#        col.label(text="Low poly")
+#        col.label(text="High poly")
+#        
+#        col = split.column(align=True)
+#        col.prop(scene.mesh_l, "my_lpstr")
+#        col.prop(scene.mesh_h, "my_hpstr")
         
         # Export
-        layout.label(text="Export collections:")
-        layout.label(text="Export path:")
-        row = layout.row(align = True)
-        row.prop(scene.path_s, "my_path") # EXPORT
+        box = layout.box()
+        box.label(text="Export collections:")
+        #layout.label(text="Export path:")
+        row = box.row(align = True)
+        row.prop(scene.path_s, "exp_path") # EXPORT
         open_ep = row.operator("setid.open_folder", text = '', icon = 'EVENT_OS')
        
-        open_ep.path = bpy.context.scene.path_s.my_path
+        open_ep.path = bpy.context.scene.path_s.exp_path
         
-        row = layout.row(align = True)
+        row = box.row(align = True)
         row.operator("ex.fbx") # EXPORT
         
-        split = layout.split()
-        col = split.column()
-        col.prop(scene.lp_g,"lp_gal")
-        col = split.column()
-        col.prop(scene.lp_g,"hp_gal")
+        row = box.row(align = True)
+        #split = layout.split()
+        #row = row.column()
+        row.prop(scene.lp_g,"lp_gal")
+        #col = split.column()
+        row.prop(scene.lp_g,"hp_gal")
         
         #triangulate
-        row = layout.row(align = True)
+        row = box.row(align = True)
         row.prop(scene.lp_g,"lp_tris")
         row.prop(scene.lp_g,"hp_tris")
 
 
-        layout.label(text="Check path:")
+        layout.label(text="Textures path:")
         row = layout.row(align = True)
-        row.prop(scene.path_s, "my_pathmat") # Materials attaching
+        row.prop(scene.path_s, "exp_pathmat") # Materials attaching
 
         open_cp = row.operator("setid.open_folder", text = '', icon = 'EVENT_OS')
-        open_cp.path = bpy.context.scene.path_s.my_pathmat
+        open_cp.path = bpy.context.scene.path_s.exp_pathmat
                 
         # Connect
         row = layout.row(align = True)
@@ -1136,11 +1204,11 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         layout.label(text="Triangulated: "+ str(ismod) + "/"+ str(selcount))
         
         #Poly count
-        colname = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
+        colname = "Low Poly_" + str(bpy.context.scene.id_slider.col_id)
         layout.label(text="Polycount of "+ str(colname) + ":" )
         tris, polys, ngones = 0,0,0
         
-        #colname = "Low Poly_" + str(bpy.context.scene.my_tool.col_id)
+        #colname = "Low Poly_" + str(bpy.context.scene.id_slider.col_id)
         if colname in bpy.data.collections:
             dg = bpy.context.evaluated_depsgraph_get()
             #objects = 
@@ -1161,7 +1229,11 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         #settings
         row = layout.row()
         row.menu("VIEW3D_MT_SETID_Settings", icon = "PREFERENCES", text = '' )
-                    
+        
+        ver = bl_info.get('version')
+        ver = str(ver[0])+('.')+str(ver[1])
+        row.label(text = 'Version: ' + ver)    
+        
 class SETID_Preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
@@ -1172,6 +1244,7 @@ class SETID_Preferences(bpy.types.AddonPreferences):
         row.operator("setid.addon_upd", icon = "URL")
                 
 classes = [
+    VIEW3D_MT_SETID_SetName_Settings,
     Open_Folder,
     Low_poly,
     High_poly,
@@ -1183,6 +1256,7 @@ classes = [
     Set_name_str,
     Set_name_aib,
     Copy_name,
+    Hide_named,
     Low_polystr,
     Export_fbx,
     High_polystr,
@@ -1206,7 +1280,7 @@ def register():
     for cl in classes:
         register_class(cl)
         
-    bpy.types.Scene.my_tool = bpy.props.PointerProperty(type = Slider)
+    bpy.types.Scene.id_slider = bpy.props.PointerProperty(type = Slider)
     bpy.types.Scene.st_name = bpy.props.PointerProperty(type = Set_name_str)
     bpy.types.Scene.ai_b = bpy.props.PointerProperty(type = Set_name_aib)
     bpy.types.Scene.mesh_l = bpy.props.PointerProperty(type = Low_polystr)
