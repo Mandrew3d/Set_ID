@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 3),
-    "blender": (4, 0, 0),
+    "version": (1, 4),
+    "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
     "warning": "",
@@ -13,6 +13,7 @@ bl_info = {
 import bpy, math, random, colorsys, os
 import addon_utils
 import requests
+import re
 
 from bpy.utils import register_class, unregister_class
 from bpy.types import (
@@ -22,11 +23,18 @@ from bpy.types import (
     Operator,
 )
 
+    
 #Slider
 class Slider(bpy.types.PropertyGroup):
     col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
-    
+    active_col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
 
+
+#Collections
+class Collections_Props(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "", default="A")
+    
+    
 #Set name index str
 class Set_name_str(bpy.types.PropertyGroup):
     my_str : bpy.props.StringProperty(name = "", default="A")
@@ -36,6 +44,103 @@ class Set_name_str(bpy.types.PropertyGroup):
 class Set_name_aib(bpy.types.PropertyGroup):
     my_autg : bpy.props.BoolProperty(name = " Auto index", default=True )
     my_hide : bpy.props.BoolProperty(name = " Auto hide", default=True )
+
+#FBX Settings
+
+class SetID_Show_Settings(bpy.types.PropertyGroup):
+    show_fbx_settings: bpy.props.BoolProperty(default=False)
+    
+class FbxExportSettings(bpy.types.PropertyGroup):
+
+    # ОБЪЕКТЫ
+    #use_selection: bpy.props.BoolProperty(default=False)
+    #use_visible: bpy.props.BoolProperty(default=False)
+    #use_active_collection: bpy.props.BoolProperty(default=False)
+    #collection: bpy.props.StringProperty(default="")
+
+    # МАСШТАБ
+    global_scale: bpy.props.FloatProperty(default=1.0, min=0.001, max=1000.0)
+    apply_unit_scale: bpy.props.BoolProperty(default=True)
+    apply_scale_options: bpy.props.EnumProperty(
+        items=[
+            ("FBX_SCALE_NONE", "None", ""),
+            ("FBX_SCALE_UNITS", "Units", ""),
+            ("FBX_SCALE_CUSTOM", "Custom", ""),
+            ("FBX_SCALE_ALL", "All", ""),
+        ],
+        default="FBX_SCALE_NONE"
+    )
+
+    # ПРОСТРАНСТВО
+    use_space_transform: bpy.props.BoolProperty(default=True)
+    bake_space_transform: bpy.props.BoolProperty(default=False)
+
+    # ТИПЫ ОБЪЕКТОВ
+    object_types: bpy.props.EnumProperty(
+        items=[
+            ("ARMATURE", "Armature", ""),
+            ("CAMERA", "Camera", ""),
+            ("EMPTY", "Empty", ""),
+            ("LIGHT", "Light", ""),
+            ("MESH", "Mesh", ""),
+            ("OTHER", "Other", ""),
+        ],
+        options={'ENUM_FLAG'},
+        default={'ARMATURE', 'CAMERA', 'EMPTY', 'LIGHT', 'MESH', 'OTHER'}
+    )
+
+    # МЕШ-ОПЦИИ
+    use_mesh_modifiers: bpy.props.BoolProperty(default=True)
+    use_mesh_modifiers_render: bpy.props.BoolProperty(default=True)
+
+    mesh_smooth_type: bpy.props.EnumProperty(
+        items=[
+            ("OFF", "Normals Only", ""),
+            ("FACE", "Face", ""),
+            ("EDGE", "Edge", ""),
+            ("SMOOTH_GROUP", "Smooth Group", ""),
+        ],
+        default="OFF"
+    )
+
+    colors_type: bpy.props.EnumProperty(
+        items=[
+            ("NONE", "None", ""),
+            ("SRGB", "sRGB", ""),
+            ("LINEAR", "Linear", ""),
+        ],
+        default="SRGB"
+    )
+    prioritize_active_color: bpy.props.BoolProperty(default=False)
+
+    use_subsurf: bpy.props.BoolProperty(default=False)
+    use_mesh_edges: bpy.props.BoolProperty(default=False)
+    use_tspace: bpy.props.BoolProperty(default=False)
+    #use_triangles: bpy.props.BoolProperty(default=False)
+    use_custom_props: bpy.props.BoolProperty(default=False)
+
+    # МЕТАДАННЫЕ (общие)
+    use_metadata: bpy.props.BoolProperty(default=True)
+
+    # ОСИ
+    axis_forward: bpy.props.EnumProperty(
+        items=[
+            ("X", "X", ""), ("Y", "Y", ""), ("Z", "Z", ""),
+            ("-X", "-X", ""), ("-Y", "-Y", ""), ("-Z", "-Z", "")
+        ],
+        default="-Z"
+    )
+    axis_up: bpy.props.EnumProperty(
+        items=[
+            ("X", "X", ""), ("Y", "Y", ""), ("Z", "Z", ""),
+            ("-X", "-X", ""), ("-Y", "-Y", ""), ("-Z", "-Z", "")
+        ],
+        default="Y"
+    )
+
+
+
+
     
 #Low poly str
 class Low_polystr(bpy.types.PropertyGroup):
@@ -58,6 +163,91 @@ class Path_m(bpy.types.PropertyGroup):
     exp_path : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
     exp_pathmat : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
 
+def get_active_collection_name():
+    name_c = bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name
+    return name_c
+
+#fbx export func
+def export_fbx(path: str, objects, use_triangulate):
+    """
+    Экспорт в FBX.
+    path    — полный путь к файлу .fbx (строка)
+    objects — итерируемая коллекция объектов для экспорта
+    Параметры экспорта берутся из bpy.context.scene.fbx_settings
+    """
+    ctx = bpy.context
+    scene = ctx.scene
+    s = scene.fbx_settings  # напрямую
+
+    prev_active = ctx.view_layer.objects.active
+    prev_selected = list(ctx.selected_objects)
+    path = path + '.fbx'
+    try:
+        # снять текущее выделение
+        for o in prev_selected:
+            o.select_set(False)
+
+        # выделить объекты для экспорта
+        objs = list(objects)
+        for o in objs:
+            o.select_set(True)
+
+        # установить активный объект
+        if objs:
+            ctx.view_layer.objects.active = objs[0]
+
+        # экспорт
+        bpy.ops.export_scene.fbx(
+            filepath=path,
+            use_selection=True,
+            use_visible=False,
+            #collection=s.collection,
+
+            global_scale=s.global_scale,
+            apply_unit_scale=s.apply_unit_scale,
+            apply_scale_options=s.apply_scale_options,
+
+            use_space_transform=s.use_space_transform,
+            bake_space_transform=s.bake_space_transform,
+
+            object_types=s.object_types,
+
+            use_mesh_modifiers=s.use_mesh_modifiers,
+            use_mesh_modifiers_render=s.use_mesh_modifiers_render,
+
+            mesh_smooth_type=s.mesh_smooth_type,
+            colors_type=s.colors_type,
+            prioritize_active_color=s.prioritize_active_color,
+
+            use_subsurf=s.use_subsurf,
+            use_mesh_edges=s.use_mesh_edges,
+            use_tspace=s.use_tspace,
+            use_triangles=use_triangulate,
+            use_custom_props=s.use_custom_props,
+
+            axis_forward=s.axis_forward,
+            axis_up=s.axis_up,
+        )
+
+    finally:
+        # снять выделение после экспорта
+        for o in list(ctx.selected_objects):
+            o.select_set(False)
+
+        # восстановить прежнее выделение
+        for o in prev_selected:
+            if o.name in ctx.view_layer.objects:
+                ctx.view_layer.objects[o.name].select_set(True)
+
+        # восстановить активный объект
+        if prev_active and prev_active.name in ctx.view_layer.objects:
+            ctx.view_layer.objects.active = ctx.view_layer.objects[prev_active.name]
+        else:
+            ctx.view_layer.objects.active = None
+
+
+        
+
 #Open folder
 def open_folder(self, context):
     path = os.path.abspath(self.path)
@@ -75,38 +265,165 @@ class Open_Folder(Operator):
         open_folder(self, context)
         return {'FINISHED'}    
 
+def increment_string(s: str) -> str:
+    match = re.search(r"(\d+)$", s)
+    
+    # нет числа в конце → добавить "_1"
+    if not match:
+        return f"{s}_1"
+    
+    number_str = match.group(1)
+    number = int(number_str) + 1
+    new_number = str(number).zfill(len(number_str))  # сохраняем ведущие нули
+    
+    return s[:match.start()] + new_number
+
+
+
+def create_collection(self,context):
+    cols = context.scene.setid_collections
+    if len(cols) > 0:
+        new_name = increment_string(context.scene.setid_collections[len(cols)-1].name)
+        new_col = context.scene.setid_collections.add()
+        new_col.name = new_name
+    else:
+        new_col = context.scene.setid_collections.add()
+        new_col.name = 'Object_1'
+
+    
+    
+    
+class Create_New_Collection(Operator):
+    bl_idname = "setid.new_collection"
+    bl_label = "Create New Collection"
+
+    
+    def execute(self, context):
+        create_collection(self, context)
+        return {'FINISHED'}
+
+    
+#Move Collection
+
+def move_collection(self, context):
+    scene = context.scene
+    idx = self.col_id
+    col = scene.setid_collections
+
+    if not col or idx < 0 or idx >= len(col):
+        return
+
+    # вычисляем индекс для перемещения
+    new_idx = idx - 1 if self.up else idx + 1
+    if new_idx < 0 or new_idx >= len(col):
+        return
+
+    # копируем **только пользовательские свойства** PropertyGroup
+    user_props = [k for k in col[idx].keys() if not k.startswith("_")]
+    for prop_name in user_props:
+        col[idx][prop_name], col[new_idx][prop_name] = col[new_idx][prop_name], col[idx][prop_name]
+
+
+class Move_Id_Collection(Operator):
+    bl_idname = "setid.move_id_collection"
+    bl_label = "Move Collection"
+     
+    col_id : bpy.props.IntProperty(default = 0)
+    up : bpy.props.BoolProperty(default = False)
+    
+    def execute(self, context):
+        move_collection(self, context)
+        return {'FINISHED'}
+
+def delete_collection(self,context):
+    col = self.col_id
+    bpy.context.scene.id_slider.active_col_id = max(0,col -1)
+    bpy.context.scene.setid_collections.remove(col)
+    
+        
+class Delete_Collection(Operator):
+    bl_idname = "setid.delete_collection"
+    bl_label = "Remove Collection"
+    
+    col_id : bpy.props.IntProperty(default = 0)
+    
+    def execute(self, context):
+        delete_collection(self, context)
+        return {'FINISHED'}
+
+def set_active_collection(self,context):
+    col_id = self.col_id
+    bpy.context.scene.id_slider.active_col_id = col_id
+    
+    
+    
+class Set_Active_Collection(Operator):
+    bl_idname = "setid.set_collection"
+    bl_label = "Set Active"
+
+    col_id : bpy.props.IntProperty(default = 0)
+    
+    def execute(self, context):
+        set_active_collection(self, context)
+        return {'FINISHED'}    
+
+
+#rename col
+def rename_collection(self,context):
+    col_id = self.col_id
+    
+    bpy.context.scene.setid_collections[col_id].name = self.new_name
+    
+    
+
+class Rename_Collection(Operator):
+    bl_idname = "setid.rename_collection"
+    bl_label = "Rename Collection"
+
+    col_id : bpy.props.IntProperty(default = 0)
+    
+    new_name: bpy.props.StringProperty(name="Name")
+    
+    
+    def invoke(self, context, event):
+        self.new_name = bpy.context.scene.setid_collections[self.col_id].name
+        return context.window_manager.invoke_props_dialog(self)
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "new_name")    
+    
+    
+    def execute(self, context):
+        rename_collection(self, context)
+        return {'FINISHED'} 
+        
+def move_to_collection(obj, collection_name: str):
+    # Найти или создать коллекцию
+    if collection_name in bpy.data.collections:
+        col = bpy.data.collections[collection_name]
+    else:
+        col = bpy.data.collections.new(collection_name)
+        bpy.context.scene.collection.children.link(col)
+
+    # Удалить объект из всех текущих коллекций
+    for c in obj.users_collection:
+        c.objects.unlink(obj)
+
+    # Добавить в нужную коллекцию
+    col.objects.link(obj)
+    
 # low poly collection
 def low_poly(self, context):
 
 
 #Collection creation
-    indexcol=bpy.context.scene.id_slider.col_id
-    namecollp="Low Poly_" + str(indexcol)
-    if not bpy.data.collections.get(namecollp):
-        bpy.data.scenes["Scene"].collection.children.link(bpy.data.collections.new(namecollp))
-    else:
-        bpy.data.collections.get(namecollp)
-        
-
-#Add in collection            
-    bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name="VremCollection")
-    coll_from = bpy.data.collections['VremCollection']
-    coll_to = bpy.data.collections[namecollp]
-    to_unlink = []
+    indexcol=bpy.context.scene.id_slider.active_col_id
+    name_to_move = bpy.context.scene.setid_collections[indexcol].name
+    namecollp="Low Poly_" + name_to_move
     
-    
-    for ob in bpy.context.selected_objects:
-        try:
-            coll_to.objects.link(ob)
-        except RuntimeError:
-            pass
-        to_unlink.append(ob)
-    
-    for ob in bpy.context.selected_objects:
-        coll_from.objects.unlink(ob)
-   
-    Vrem = bpy.data.collections['VremCollection']    
-    bpy.data.collections.remove(Vrem)
+    for obj in bpy.context.selected_objects:
+        move_to_collection(obj, namecollp)
 
     
 class Low_poly(Operator):
@@ -122,34 +439,15 @@ class Low_poly(Operator):
 def high_poly(self, context):
 
 
-#Collection creation
-    indexcol=bpy.context.scene.id_slider.col_id
-    namecolhp="High Poly_" + str(indexcol)
-    if not bpy.data.collections.get(namecolhp):
-        bpy.data.scenes["Scene"].collection.children.link(bpy.data.collections.new(namecolhp))
-    else:
-        bpy.data.collections.get(namecolhp)
-        
 
-#Add in collection            
-    bpy.ops.object.move_to_collection(collection_index=0, is_new=True, new_collection_name="VremCollection")
-    coll_from = bpy.data.collections['VremCollection']
-    coll_to = bpy.data.collections[namecolhp]
-    to_unlink = []
+#Collection creation
+    indexcol=bpy.context.scene.id_slider.active_col_id
+    name_to_move = bpy.context.scene.setid_collections[indexcol].name
+    namecollp="High Poly_" + name_to_move
     
-    
-    for ob in bpy.context.selected_objects:
-        try:
-            coll_to.objects.link(ob)
-        except RuntimeError:
-            pass
-        to_unlink.append(ob)
-    
-    for ob in bpy.context.selected_objects:
-        coll_from.objects.unlink(ob)
-   
-    Vrem = bpy.data.collections['VremCollection']    
-    bpy.data.collections.remove(Vrem)
+    for obj in bpy.context.selected_objects:
+        move_to_collection(obj, namecollp)
+
 
     
 class High_poly(Operator):
@@ -162,8 +460,9 @@ class High_poly(Operator):
         return {'FINISHED'}    
 #LP Viz
 def lpviz(self, context):
-    indexcol=bpy.context.scene.id_slider.col_id
-    colname = "Low Poly_" + str(indexcol)
+    indexcol=bpy.context.scene.id_slider.active_col_id
+    name_to_vis = bpy.context.scene.setid_collections[indexcol].name
+    colname="Low Poly_" + name_to_vis
 
     contcol = bpy.context.view_layer.layer_collection.children[colname].hide_viewport
     #hg = bpy.context.view_layer.layer_collection.children[colname].hide_get
@@ -187,8 +486,10 @@ class LPCol_viz(Operator):
         return {'FINISHED'}        
 #HP Viz
 def hpviz(self, context):
-    indexcol=bpy.context.scene.id_slider.col_id
-    colname = "High Poly_" + str(indexcol)
+    indexcol=bpy.context.scene.id_slider.active_col_id
+    name_to_vis = bpy.context.scene.setid_collections[indexcol].name
+    colname="High Poly_" + name_to_vis
+    
 
     contcol = bpy.context.view_layer.layer_collection.children[colname].hide_viewport
 
@@ -219,10 +520,10 @@ def set_name(self, context):
     nh = str(bpy.context.scene.mesh_h.my_hpstr)
     
     indexcol=bpy.context.scene.id_slider.col_id
-    namecollp='Low Poly_' + str(indexcol)
+    namecollp='Low Poly_' + str(bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name)
     
     indexcol=bpy.context.scene.id_slider.col_id
-    namecolhp='High Poly_' + str(indexcol)
+    namecolhp='High Poly_' + str(bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name)
 
     lpcoll = namecollp
     hpcoll = namecolhp
@@ -315,20 +616,21 @@ class Copy_name(Operator):
 
 #Hide Named
 def hide_named(self, context):
-    col_id = bpy.context.scene.id_slider.col_id
+    #col_id = bpy.context.scene.id_slider.col_id
+    name = get_active_collection_name()
     
-    hp_col_name = 'High Poly_' + str(col_id)
-    lp_col_name = 'Low Poly_' + str(col_id)
+    hp_col_name = 'High Poly_' + name
+    lp_col_name = 'Low Poly_' + name
     
     hp_col = bpy.data.collections[hp_col_name]
     lp_col = bpy.data.collections[lp_col_name]
     
     for ob in hp_col.objects:
-        if '_high_' in ob.name:
+        if  bpy.context.scene.mesh_l.my_lpstr in ob.name:
             ob.hide_set(True)
             #print(ob.name)
     for ob in lp_col.objects:
-        if '_low_' in ob.name:
+        if bpy.context.scene.mesh_h.my_hpstr in ob.name:
             ob.hide_set(True)
     
     
@@ -340,53 +642,46 @@ class Hide_named(Operator):
         hide_named(self, context)
         return {'FINISHED'}
     
+
+def list_objects_in_collection(collection_name):
+    collection = bpy.data.collections.get(collection_name)
+    if collection is None:
+        #print(f"Коллекция '{collection_name}' не найдена.")
+        return []
+    
+    objects = [obj for obj in collection.objects]
+    #print(f"Объекты в коллекции '{collection_name}': {objects}")
+    return objects
         
 def exp_fbx(context):
 #export Lowpoly
 
-    tris = bpy.context.scene.lp_g.lp_tris
+    trislp = bpy.context.scene.lp_g.lp_tris
     trishp = bpy.context.scene.lp_g.hp_tris
     
     if bpy.context.scene.lp_g.lp_gal == True:
         indexcol = bpy.context.scene.id_slider.col_id 
-        namecollp = str("Low Poly_" + str(indexcol))
-
+        name = get_active_collection_name()
+        namecollp = "Low Poly_" + name
+        objects_to_exp = list_objects_in_collection(namecollp)
 
         path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
-        collection = bpy.data.collections[namecollp]
+        #collection = bpy.data.collections[namecollp]
+        path = os.path.join(path, namecollp)
+        export_fbx(path, objects_to_exp, trislp)
         
-
-        layer_collection = bpy.context.view_layer.layer_collection.children[collection.name]
-        bpy.context.view_layer.active_layer_collection = layer_collection
-        bpy.ops.export_scene.fbx(check_existing=False,
-            filepath= path + "Lowpoly_" + str(indexcol) + ".fbx",
-            filter_glob="*.fbx",
-            use_selection= False,
-            use_triangles= tris,
-            use_armature_deform_only=True,
-            use_active_collection= True,
-            add_leaf_bones=False,
-            path_mode='AUTO')
-
-    if bpy.context.scene.lp_g.hp_gal == True: 
-        indexcol=bpy.context.scene.id_slider.col_id
-        namecolhp="High Poly_" + str(indexcol)
+    if bpy.context.scene.lp_g.hp_gal == True:
+        indexcol = bpy.context.scene.id_slider.col_id 
+        
+        name = get_active_collection_name()
+        namecollp = "High Poly_" + name
+        objects_to_exp = list_objects_in_collection(namecollp)
+        
         path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
-        collection = bpy.data.collections[namecolhp]
+        #collection = bpy.data.collections[namecollp]
+        path = os.path.join(path, namecollp)
         
-
-        layer_collection = bpy.context.view_layer.layer_collection.children[collection.name]
-        bpy.context.view_layer.active_layer_collection = layer_collection
-        bpy.ops.export_scene.fbx(check_existing=False,
-            filepath= path + "Highpoly_" + str(indexcol) + ".fbx",
-            #filepath= path,
-            filter_glob="*.fbx",
-            use_selection= False,
-            use_triangles= trishp,
-            use_armature_deform_only=True,
-            use_active_collection= True,
-            add_leaf_bones=False,
-            path_mode='AUTO')
+        export_fbx(path, objects_to_exp, trishp)
 
 class Export_fbx(Operator):
     bl_idname = "ex.fbx"
@@ -980,6 +1275,95 @@ class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
             )
         op.url = 'https://t.me/Mandrew3d'
 
+#Menu fbx export
+class VIEW3D_MT_fbx_settings_menu(bpy.types.Menu):
+    bl_label = "SetID FBX Settings"
+    bl_idname = "VIEW3D_MT_fbx_settings_menu"
+
+    def draw(self, context):
+        layout = self.layout
+        s = context.scene.fbx_settings
+
+        # --- PATH ---
+        layout.label(text="Filepath:")
+        layout.prop(s, "filepath", text="")
+
+        # --- SCALE ---
+        col = layout.column(align=True)
+        col.label(text="Scale:")
+        col.prop(s, "global_scale")
+        col.prop(s, "apply_unit_scale")
+        col.prop(s, "apply_scale_options")
+
+        # --- TRANSFORM ---
+        col = layout.column(align=True)
+        col.label(text="Transform:")
+        col.prop(s, "use_space_transform")
+        col.prop(s, "bake_space_transform")
+
+        # --- OBJECTS ---
+        col = layout.column(align=True)
+        col.label(text="Objects:")
+        col.prop(s, "object_types")
+
+        # --- MESH OPTIONS ---
+        col = layout.column(align=True)
+        col.label(text="Mesh Options:")
+        col.prop(s, "use_mesh_modifiers")
+        col.prop(s, "use_mesh_modifiers_render")
+        col.prop(s, "mesh_smooth_type")
+        col.prop(s, "use_subsurf")
+        col.prop(s, "use_mesh_edges")
+        col.prop(s, "use_tspace")
+        col.prop(s, "use_triangles")
+
+        # --- COLORS ---
+        col = layout.column(align=True)
+        col.label(text="Colors:")
+        col.prop(s, "colors_type")
+        col.prop(s, "prioritize_active_color")
+
+        # --- MISC ---
+        col = layout.column(align=True)
+        col.label(text="Other:")
+        col.prop(s, "use_custom_props")
+        col.prop(s, "use_metadata")
+
+        # --- AXIS ---
+        col = layout.column(align=True)
+        col.label(text="Axis Conversion:")
+        row = col.row(align=True)
+        row.prop(s, "axis_forward")
+        row.prop(s, "axis_up")
+
+        layout.separator()
+        layout.operator("export_scene.fbx_custom", text="Export FBX")
+
+#Menu Settings
+class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
+    bl_label = "Set-ID Settings"
+    
+    def draw(self, context):
+        
+        layout = self.layout
+
+        scene = context.scene
+
+        layout.label(text="Settings:")
+        
+        
+        layout.separator()
+        col = layout.column()
+         
+        col.operator("setid.addon_upd", icon = "URL") 
+         
+        op = col.operator(
+            'wm.url_open',
+            text='Contact Me',
+            icon='CURRENT_FILE'
+            )
+        op.url = 'https://t.me/Mandrew3d'
+
 #Menu Set Names
 class VIEW3D_MT_SETID_SetName_Settings(bpy.types.Menu):
     bl_label = "Set Name Settings"
@@ -1045,11 +1429,65 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         layout = self.layout
 
         scene = context.scene
+        
+        
+        
+        
+        
         mytool = scene.id_slider
        
         # New_Collection  
+        
+        collections = bpy.context.scene.setid_collections
+        
         box = layout.box()
         box.label(text="Set collection:")
+        
+        #Cols Array
+        act_col = bpy.context.scene.id_slider.active_col_id
+        ind_col = 0
+        
+        #col = box.column(align = True)
+#        row = layout.row(align = True) 
+#        
+#        row = col.row(align = True)
+#        
+        col = box.column(align = True)
+        
+        for colect in collections:
+            row = layout.row(align = True) 
+            row = col.row(align = True)
+            
+            is_active = False
+            if ind_col == act_col:
+                is_active = True
+            arrow_down = row.operator("setid.move_id_collection", text = '', icon = 'TRIA_DOWN')
+            arrow_down.col_id = ind_col
+            arrow_down.up = False
+            
+            arrow_up = row.operator("setid.move_id_collection", text = '', icon = 'TRIA_UP')
+            arrow_up.col_id = ind_col
+            arrow_up.up = True
+                        
+            
+            
+            but = row.operator("setid.set_collection", text = colect.name,  depress = is_active)
+            but.col_id = ind_col
+            
+            
+            
+            rename_b = row.operator("setid.rename_collection", text = '', icon = 'GREASEPENCIL')
+            rename_b.col_id = ind_col
+            
+            delete_b = row.operator("setid.delete_collection", text = '', icon = 'TRASH')
+            delete_b.col_id = ind_col
+            
+            ind_col += 1
+        
+        row = layout.row(align = True) 
+        row = col.row(align = True)    
+        row.operator("setid.new_collection", icon='PLUS', text = 'Add Object')
+        
         
         col = box.column(align = True)
         row = layout.row(align = True) 
@@ -1059,17 +1497,19 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         
         row.operator("lp.poly", icon='MESH_CIRCLE')
         presslp = bpy.context.scene.lp_g.lp_gal_viz
-        colchek = "Low Poly_" + str(bpy.context.scene.id_slider.col_id)
+        colchek = "Low Poly_" + str(bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name)
         if colchek in bpy.data.collections:
             dislp = True
         else:
             dislp = False
             
         row.operator("setid.lpviz", icon = 'HIDE_OFF', text = "",depress = presslp, emboss = dislp)
+        
+        
         row.operator("hp.poly", icon='MESH_UVSPHERE')
         
         presshp = bpy.context.scene.lp_g.hp_gal_viz
-        colchek = "High Poly_" + str(bpy.context.scene.id_slider.col_id)
+        colchek = "High Poly_" + str(bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name)
         if colchek in bpy.data.collections:
             dishp = True
         else:
@@ -1077,7 +1517,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
              
         row.operator("setid.hpviz", icon = 'HIDE_OFF', text = "",depress = presshp, emboss = dishp)
         
-        col.prop(mytool,"col_id")
+        #col.prop(mytool,"col_id")
         
         # Set name
         box = layout.box()
@@ -1085,6 +1525,8 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row.label(text="Set names:")
         row.menu("VIEW3D_MT_SETID_SetName_Settings", icon = "PREFERENCES", text = '' )
         
+        
+                
         scene = context.scene
         mystr = scene.st_name
         
@@ -1125,8 +1567,71 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         
         # Export
         box = layout.box()
-        box.label(text="Export collections:")
+        row = box.row(align = True)
+        row.label(text="Export collections:")
+        
+        row.prop(context.scene.show_fbx_settings_flag , "show_fbx_settings", text="", icon="PREFERENCES")
+        
+        s = context.scene
+        if s.show_fbx_settings_flag.show_fbx_settings:
+            layout = self.layout
+            fbx = context.scene.fbx_settings
+
+
+            # ----------------------------------------------------
+            # TRANSFORM
+            # ----------------------------------------------------
+            box1 = box.box()
+            box2= box1.box()
+            box2.label(text="Transform", icon='OBJECT_DATA')
+
+            # Scale
+            col = box2.column(align=True)
+            col.label(text="Scale:")
+            col.prop(fbx, "global_scale", text="Scale")
+            col.prop(fbx, "apply_unit_scale", text="Apply Unit")
+            col.prop(fbx, "apply_scale_options", text="Apply Scalings")
+
+            # Forward / Up
+            row = box2.row(align=True)
+            row.prop(fbx, "axis_forward", text="Forward")
+            row.prop(fbx, "axis_up", text="Up")
+
+            # Space / Apply transform
+            box2.prop(fbx, "use_space_transform", text="Use Space Transform")
+            box2.prop(fbx, "bake_space_transform", text="Apply Transform")
+
+
+            # ----------------------------------------------------
+            # GEOMETRY
+            # ----------------------------------------------------
+            #box = box.box()
+            box2= box1.box()
+            box2.label(text="Geometry", icon='MESH_DATA')
+
+            # Smoothing
+            col = box2.column(align=True)
+            col.prop(fbx, "mesh_smooth_type", text="Smoothing")
+
+            # Subdivision
+            box2.prop(fbx, "use_subsurf", text="Export Subdivision Surface")
+
+            # Modifiers
+            box2.prop(fbx, "use_mesh_modifiers", text="Apply Modifiers")
+         
+
+            # Loose edges / triangulation / tangent space
+            box2.prop(fbx, "use_mesh_edges", text="Loose Edges")
+            #box2.prop(fbx, "use_triangles", text="Triangulate Faces")
+            box2.prop(fbx, "use_tspace", text="Tangent Space")
+
+            # Vertex colors
+            box2.prop(fbx, "colors_type", text="Vertex Colors")
+            box2.prop(fbx, "prioritize_active_color", text="Prioritize Active Color")
+                                    
+            
         #layout.label(text="Export path:")
+        #box = layout.box()
         row = box.row(align = True)
         row.prop(scene.path_s, "exp_path") # EXPORT
         open_ep = row.operator("setid.open_folder", text = '', icon = 'WORKSPACE')
@@ -1249,6 +1754,13 @@ class SETID_Preferences(bpy.types.AddonPreferences):
                 
 classes = [
     VIEW3D_MT_SETID_SetName_Settings,
+    VIEW3D_MT_fbx_settings_menu,
+    Collections_Props,
+    Create_New_Collection,
+    Move_Id_Collection,
+    Delete_Collection,
+    Set_Active_Collection,
+    Rename_Collection,
     Open_Folder,
     Low_poly,
     High_poly,
@@ -1259,6 +1771,8 @@ classes = [
     Set_name,
     Set_name_str,
     Set_name_aib,
+    SetID_Show_Settings,
+    FbxExportSettings,
     Copy_name,
     Hide_named,
     Low_polystr,
@@ -1283,8 +1797,16 @@ classes = [
 def register():
     for cl in classes:
         register_class(cl)
+    
         
+    
+    
     bpy.types.Scene.id_slider = bpy.props.PointerProperty(type = Slider)
+    
+    #fbx settings
+    bpy.types.Scene.show_fbx_settings_flag = bpy.props.PointerProperty(type=SetID_Show_Settings)
+    bpy.types.Scene.fbx_settings = bpy.props.PointerProperty(type=FbxExportSettings)
+    
     bpy.types.Scene.st_name = bpy.props.PointerProperty(type = Set_name_str)
     bpy.types.Scene.ai_b = bpy.props.PointerProperty(type = Set_name_aib)
     bpy.types.Scene.mesh_l = bpy.props.PointerProperty(type = Low_polystr)
@@ -1293,9 +1815,9 @@ def register():
     bpy.types.Scene.path_s = bpy.props.PointerProperty(type = Path_m)
     bpy.types.Scene.path_mat = bpy.props.PointerProperty(type = Path_m)
     #bpy.types.Scene.hp_g = bpy.props.PointerProperty(type = High_polystr)
-    
+    bpy.types.Scene.setid_collections = bpy.props.CollectionProperty(type = Collections_Props)
     bpy.types.VIEW3D_HT_header.prepend(SELECT_HT_collection)
-
+    
     
 def unregister():
     bpy.types.VIEW3D_HT_header.remove(SELECT_HT_collection)
