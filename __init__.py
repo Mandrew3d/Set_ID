@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 4),
+    "version": (1, 5),
     "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
@@ -163,8 +163,11 @@ class Path_m(bpy.types.PropertyGroup):
     exp_path : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
     exp_pathmat : bpy.props.StringProperty(subtype="FILE_PATH", name = "", default="//")
 
-def get_active_collection_name():
-    name_c = bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name
+
+def get_active_collection_name(): 
+    name_c= ' '
+    if bpy.context.scene.setid_collections:
+        name_c = bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name 
     return name_c
 
 #fbx export func
@@ -1497,7 +1500,8 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         
         row.operator("lp.poly", icon='MESH_CIRCLE')
         presslp = bpy.context.scene.lp_g.lp_gal_viz
-        colchek = "Low Poly_" + str(bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name)
+        name = get_active_collection_name()
+        colchek = "Low Poly_" + name
         if colchek in bpy.data.collections:
             dislp = True
         else:
@@ -1509,7 +1513,8 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row.operator("hp.poly", icon='MESH_UVSPHERE')
         
         presshp = bpy.context.scene.lp_g.hp_gal_viz
-        colchek = "High Poly_" + str(bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name)
+        #name = 
+        colchek = "High Poly_" + name
         if colchek in bpy.data.collections:
             dishp = True
         else:
