@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 8),
+    "version": (1, 9),
     "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
@@ -31,7 +31,7 @@ from bpy.types import (
 
 #Slider
 class Slider(bpy.types.PropertyGroup):
-    col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
+    col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=0)
     active_col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
 
 
