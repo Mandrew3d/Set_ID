@@ -1,4 +1,4 @@
-# Blender Addon: [Addon Name]
+# Blender Addon: [Set ID]
 
 ## Description
 If you've ever had to manually assign names and suffixes for Low-Poly and High-Poly objects, you know how tedious it can be. Forget about the routine—this addon takes care of it for you.  
