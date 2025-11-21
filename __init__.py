@@ -1265,117 +1265,53 @@ def get_addon_folder():
     return s_path
 
 
-#def update_addon(self):
-#    #get raw from git
-#    url = 'https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py'
-#    
-#    response = requests.get(url, stream=True)
-
-#    addon_path = get_addon_folder()
-#    path = os.path.join(addon_path, '__init__.py')
-#    
-#    if response.status_code == 200:
-
-#        #read instaled addon init        
-#        f_path = path
-
-#        file = open(f_path, "r")
-#        
-#        inst_addon = file.read()
-#        file.close()   
-#        
-#        #read git addon init   
-#        git_addon = response.text
-
-#        
-#        t1 = inst_addon
-#        t2 = git_addon
-#        
-#        if t1 == t2:
-#            self.report({'INFO'}, 'Is the latest version')   
-#            #print('Git = Inst')
-#        else:
-#            
-#            
-#            filePath = addon_path
-
-#            
-#            newFile = open(os.path.join(filePath, "__init__UPD.py"), "w")
-#            newFile.write(git_addon)
-#            newFile.close()
-
-# 
-#            
-#            os.replace(os.path.join(filePath, "__init__UPD.py"), os.path.join(filePath, "__init__.py"))
-#            bpy.ops.script.reload()
-#            #sys.modules['Master_Instance-main'].update_addon() 
-#    else:
-#        print('Error downloading file')
-
-GITHUB_URL = "https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py"
-ADDON_MODULE = __package__  # имя текущего аддона
-
-
-def get_remote_version(text):
-    """Извлекает bl_info['version'] из текста удалённого файла."""
-    try:
-        tree = ast.parse(text)
-        for node in tree.body:
-            if isinstance(node, ast.Assign):
-                if any(t.id == "bl_info" for t in node.targets if isinstance(t, ast.Name)):
-                    bl_info = ast.literal_eval(node.value)
-                    return tuple(bl_info.get("version", (0, 0, 0)))
-    except:
-        return None
-    return None
-
-
-def get_local_version():
-    """Версия текущего установленного аддона."""
-    return tuple(bpy.types.AddonPreferences.bl_rna.properties["bl_info"].fixed_default.get("version", (0, 0, 0)))
-
-
 def update_addon(self):
-    """Обновляет аддон, если доступна новая версия."""
-    try:
-        with urllib.request.urlopen(GITHUB_URL) as response:
-            git_text = response.read().decode("utf-8")
-    except Exception as e:
-        self.report({'ERROR'}, f"Download error: {e}")
-        return
+    #get raw from git
+    url = 'https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py'
+    
+    response = requests.get(url, stream=True)
 
-    remote_v = get_remote_version(git_text)
-    if not remote_v:
-        self.report({'ERROR'}, "Cannot read remote version")
-        return
+    addon_path = get_addon_folder()
+    path = os.path.join(addon_path, '__init__.py')
+    
+    if response.status_code == 200:
 
-    local_v = bpy.context.preferences.addons[ADDON_MODULE].bl_info["version"]
+        #read instaled addon init        
+        f_path = path
 
-    if remote_v <= local_v:
-        self.report({'INFO'}, "Latest version installed")
-        return
+        file = open(f_path, "r")
+        
+        inst_addon = file.read()
+        file.close()   
+        
+        #read git addon init   
+        git_addon = response.text
 
-    addon_path = os.path.dirname(__file__)
-    init_path = os.path.join(addon_path, "__init__.py")
+        
+        t1 = inst_addon
+        t2 = git_addon
+        
+        if t1 == t2:
+            self.report({'INFO'}, 'Is the latest version')   
+            #print('Git = Inst')
+        else:
+            
+            
+            filePath = addon_path
 
-    try:
-        # временная запись
-        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp:
-            tmp.write(git_text)
-            temp_path = tmp.name
+            
+            newFile = open(os.path.join(filePath, "__init__UPD.py"), "w")
+            newFile.write(git_addon)
+            newFile.close()
 
-        # атомарная замена
-        os.replace(temp_path, init_path)
+ 
+            
+            os.replace(os.path.join(filePath, "__init__UPD.py"), os.path.join(filePath, "__init__.py"))
+            bpy.ops.script.reload()
+            #sys.modules['Master_Instance-main'].update_addon() 
+    else:
+        print('Error downloading file')
 
-    except Exception as e:
-        self.report({'ERROR'}, f"File write error: {e}")
-        return
-
-    # перезагрузка только текущего аддона
-    bpy.ops.preferences.addon_disable(module=ADDON_MODULE)
-    bpy.ops.preferences.addon_enable(module=ADDON_MODULE)
-
-    self.report({'INFO'}, f"Updated to version {remote_v}")
 
          
 class SETID_Addon_Updater(Operator):
