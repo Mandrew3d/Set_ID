@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 6),
+    "version": (1, 8),
     "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
@@ -27,7 +27,8 @@ from bpy.types import (
     Operator,
 )
 
-    
+
+
 #Slider
 class Slider(bpy.types.PropertyGroup):
     col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=1)
@@ -636,7 +637,8 @@ def copy_name(self, context):
 class Copy_name(Operator):
     bl_idname = "set.copy_name"
     bl_label = "Attach"
-
+    bl_description = "Add object to active object collection and set same name"
+    
     def execute(self, context):
         copy_name(self, context)
         return {'FINISHED'}
@@ -665,7 +667,8 @@ def hide_named(self, context):
 class Hide_named(Operator):
     bl_idname = "setid.hide_named"
     bl_label = "Hide Named"
-
+    bl_description = "Hide all objects with suffixes"
+    
     def execute(self, context):
         hide_named(self, context)
         return {'FINISHED'}
@@ -716,7 +719,8 @@ def exp_fbx(self,context):
 class Export_fbx(Operator):
     bl_idname = "ex.fbx"
     bl_label = "Export FBX"
-
+    bl_description = "Export Low-poly and High-poly objects from active collection in 'Set collection' tab"
+    
     def execute(self, context):
             
         exp_fbx(self,context)
@@ -758,7 +762,8 @@ def exp_fbx_lp(self,context):
 class Export_fbx_All_LP(Operator):
     bl_idname = "ex.fbx_lp"
     bl_label = "Export All LP FBX"
-
+    bl_description = "Export All Low-poly objects from all collections in 'Set collection' tab"
+        
     def execute(self, context):
             
         exp_fbx_lp(self,context)
@@ -815,7 +820,8 @@ def trian_obj(context):
 class Triang_obj(Operator):
     bl_idname = "ex.triang"
     bl_label = "Triangulate"
-
+    bl_description = "Add/remove triangulate modifier for selected objects"
+    
     def execute(self, context):
             
         trian_obj(context)
@@ -1116,6 +1122,7 @@ def random_col(self,context):
 class Random_Col(Operator):
     bl_idname = "ex.randomcol"
     bl_label = "Randomize"
+    bl_description = "Set random colors for materials in selected objects"
 
     def execute(self, context):
             
@@ -1142,6 +1149,7 @@ def select_mat(context):
 class Select_Mat(Operator):
     bl_idname = "ex.selmat"
     bl_label = "Material"
+    bl_description = "Select objects with same material"
 
     def execute(self, context):
             
@@ -1196,7 +1204,8 @@ def select_index(self, context):
 class Select_By_index(Operator):
     bl_idname = "setid.selbyid"
     bl_label = "Name"
-
+    bl_description = "Select objects with same index"
+    
     def execute(self, context):
             
         select_index(self, context)
@@ -1217,6 +1226,7 @@ def sel_ngon(context):
 class Sel_ngones(Operator):
     bl_idname = "setid.selng"
     bl_label = "Select N-Gones"
+    bl_description = "Select objects with N-Gones"
     
     def execute(self, context):
             
@@ -1691,7 +1701,10 @@ class SETIDC_PT_Operators(bpy.types.Panel):
             
         row = box.row(align = True)
         row.operator("ex.fbx", text = text_exp) # EXPORT
-
+        
+        
+        row = box.row(align = True)
+        row.operator("ex.fbx_lp", text = 'Export Combined LowPoly') # EXPORT
 #        layout.label(text="Textures path:")
 #        row = layout.row(align = True)
 #        row.prop(scene.path_s, "exp_pathmat") # Materials attaching
