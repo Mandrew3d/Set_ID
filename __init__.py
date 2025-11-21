@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (1, 5),
+    "version": (1, 6),
     "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
@@ -14,6 +14,10 @@ import bpy, math, random, colorsys, os
 import addon_utils
 import requests
 import re
+
+import urllib.request
+import tempfile
+import ast
 
 from bpy.utils import register_class, unregister_class
 from bpy.types import (
@@ -165,7 +169,7 @@ class Path_m(bpy.types.PropertyGroup):
 
 
 def get_active_collection_name(): 
-    name_c= ' '
+    name_c= ''
     if bpy.context.scene.setid_collections:
         name_c = bpy.context.scene.setid_collections[bpy.context.scene.id_slider.active_col_id].name 
     return name_c
@@ -260,7 +264,8 @@ def open_folder(self, context):
 class Open_Folder(Operator):
     bl_idname = "setid.open_folder"
     bl_label = "Open Folder"
-    
+    bl_description = "Open Folder Externally"
+       
     path: bpy.props.StringProperty(name = 'Path', default = '' )
     
     def execute(self, context):
@@ -299,7 +304,7 @@ def create_collection(self,context):
 class Create_New_Collection(Operator):
     bl_idname = "setid.new_collection"
     bl_label = "Create New Collection"
-
+    bl_description = "You can create several objects(collections) and work seperatly with this objects"
     
     def execute(self, context):
         create_collection(self, context)
@@ -330,7 +335,8 @@ def move_collection(self, context):
 class Move_Id_Collection(Operator):
     bl_idname = "setid.move_id_collection"
     bl_label = "Move Collection"
-     
+    bl_description = "You can move collections up and down for convenience; this does not affect anything."
+    
     col_id : bpy.props.IntProperty(default = 0)
     up : bpy.props.BoolProperty(default = False)
     
@@ -347,7 +353,8 @@ def delete_collection(self,context):
 class Delete_Collection(Operator):
     bl_idname = "setid.delete_collection"
     bl_label = "Remove Collection"
-    
+    bl_description = "Warning! You are only removing the collection from this list; collections in the Outliner will not be affected."
+        
     col_id : bpy.props.IntProperty(default = 0)
     
     def execute(self, context):
@@ -373,18 +380,29 @@ class Set_Active_Collection(Operator):
 
 #rename col
 def rename_collection(self,context):
+    old_name = self.old_name
     col_id = self.col_id
+    
+    col_lp_name = 'Low Poly_'+ bpy.context.scene.setid_collections[col_id].name
+    col_hp_name = 'High Poly_'+ bpy.context.scene.setid_collections[col_id].name
+    
+    if col_lp_name in bpy.data.collections:
+        bpy.data.collections[col_lp_name].name = 'Low Poly_'+ self.new_name
+    
+    if col_hp_name in bpy.data.collections:
+        bpy.data.collections[col_hp_name].name = 'High Poly_'+ self.new_name    
     
     bpy.context.scene.setid_collections[col_id].name = self.new_name
     
     
-
 class Rename_Collection(Operator):
     bl_idname = "setid.rename_collection"
     bl_label = "Rename Collection"
-
+    bl_description = "Change the name of exported objects as well as collections in the Outliner."
+    
     col_id : bpy.props.IntProperty(default = 0)
     
+    old_name: bpy.props.StringProperty(name="Name")
     new_name: bpy.props.StringProperty(name="Name")
     
     
@@ -418,16 +436,18 @@ def move_to_collection(obj, collection_name: str):
     
 # low poly collection
 def low_poly(self, context):
+    if len(get_active_collection_name()):
 
-
-#Collection creation
-    indexcol=bpy.context.scene.id_slider.active_col_id
-    name_to_move = bpy.context.scene.setid_collections[indexcol].name
-    namecollp="Low Poly_" + name_to_move
-    
-    for obj in bpy.context.selected_objects:
-        move_to_collection(obj, namecollp)
-
+    #Collection creation
+        indexcol=bpy.context.scene.id_slider.active_col_id
+        name_to_move = bpy.context.scene.setid_collections[indexcol].name
+        namecollp="Low Poly_" + name_to_move
+        
+        for obj in bpy.context.selected_objects:
+            move_to_collection(obj, namecollp)
+    else:
+        create_collection(self,context)
+        self.execute(context)
     
 class Low_poly(Operator):
     bl_idname = "lp.poly"
@@ -444,14 +464,18 @@ def high_poly(self, context):
 
 
 #Collection creation
-    indexcol=bpy.context.scene.id_slider.active_col_id
-    name_to_move = bpy.context.scene.setid_collections[indexcol].name
-    namecollp="High Poly_" + name_to_move
-    
-    for obj in bpy.context.selected_objects:
-        move_to_collection(obj, namecollp)
+    if len(get_active_collection_name()):
 
+        indexcol=bpy.context.scene.id_slider.active_col_id
+        name_to_move = bpy.context.scene.setid_collections[indexcol].name
+        namecollp="High Poly_" + name_to_move
+        
+        for obj in bpy.context.selected_objects:
+            move_to_collection(obj, namecollp)
 
+    else:
+        create_collection(self,context)
+        self.execute(context)
     
 class High_poly(Operator):
     bl_idname = "hp.poly"
@@ -579,7 +603,8 @@ def set_name(self, context):
 class Set_name(Operator):
     bl_idname = "set.name"
     bl_label = "Set Names"
-
+    bl_description = "Select the objects in Low Poly and High Poly, then click 'Set Names'. The objects will be hidden and assigned the correct names for baking."
+    
     def execute(self, context):
         set_name(self, context)
         return {'FINISHED'}
@@ -656,44 +681,89 @@ def list_objects_in_collection(collection_name):
     #print(f"Объекты в коллекции '{collection_name}': {objects}")
     return objects
         
-def exp_fbx(context):
-#export Lowpoly
+def exp_fbx(self,context):
+    if len(get_active_collection_name()):
 
-    trislp = bpy.context.scene.lp_g.lp_tris
-    trishp = bpy.context.scene.lp_g.hp_tris
-    
-    if bpy.context.scene.lp_g.lp_gal == True:
-        indexcol = bpy.context.scene.id_slider.col_id 
-        name = get_active_collection_name()
-        namecollp = "Low Poly_" + name
-        objects_to_exp = list_objects_in_collection(namecollp)
+        trislp = bpy.context.scene.lp_g.lp_tris
+        trishp = bpy.context.scene.lp_g.hp_tris
+        
+        if bpy.context.scene.lp_g.lp_gal == True:
+            indexcol = bpy.context.scene.id_slider.col_id 
+            name = get_active_collection_name()
+            namecollp = "Low Poly_" + name
+            objects_to_exp = list_objects_in_collection(namecollp)
 
-        path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
-        #collection = bpy.data.collections[namecollp]
-        path = os.path.join(path, namecollp)
-        export_fbx(path, objects_to_exp, trislp)
+            path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
+            #collection = bpy.data.collections[namecollp]
+            path = os.path.join(path, namecollp)
+            export_fbx(path, objects_to_exp, trislp)
+            
+        if bpy.context.scene.lp_g.hp_gal == True:
+            indexcol = bpy.context.scene.id_slider.col_id 
+            
+            name = get_active_collection_name()
+            namecollp = "High Poly_" + name
+            objects_to_exp = list_objects_in_collection(namecollp)
+            
+            path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
+            #collection = bpy.data.collections[namecollp]
+            path = os.path.join(path, namecollp)
+            
+            export_fbx(path, objects_to_exp, trishp)
+    else:
+        self.report({'ERROR'}, 'Create at least one collection in "Set Collection" tab and add objects using "Low Poly/High Poly"')
         
-    if bpy.context.scene.lp_g.hp_gal == True:
-        indexcol = bpy.context.scene.id_slider.col_id 
-        
-        name = get_active_collection_name()
-        namecollp = "High Poly_" + name
-        objects_to_exp = list_objects_in_collection(namecollp)
-        
-        path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
-        #collection = bpy.data.collections[namecollp]
-        path = os.path.join(path, namecollp)
-        
-        export_fbx(path, objects_to_exp, trishp)
-
 class Export_fbx(Operator):
     bl_idname = "ex.fbx"
     bl_label = "Export FBX"
 
     def execute(self, context):
             
-        exp_fbx(context)
+        exp_fbx(self,context)
         return {'FINISHED'}
+
+
+def get_objects_in_collections(col_names: list[str]):
+    """Возвращает объекты, находящиеся в коллекциях из списка имён."""
+    result = set()  # set, чтобы избежать дубликатов
+
+    for name in col_names:
+        col = bpy.data.collections.get(name)
+        if not col:
+            continue
+        for obj in col.objects:
+            result.add(obj)
+
+    return list(result)
+
+def exp_fbx_lp(self,context):
+    if len(get_active_collection_name()):
+        
+        
+        cols = context.scene.setid_collections
+        
+        indexcol = bpy.context.scene.id_slider.col_id 
+        name = get_active_collection_name()
+        namecollp = "Low Poly_" + name
+        objects_to_exp = get_objects_in_collections(cols)
+
+        path =  bpy.path.abspath(bpy.context.scene.path_s.exp_path)
+        #collection = bpy.data.collections[namecollp]
+        path = os.path.join(path, namecollp)
+        export_fbx(path, objects_to_exp, trislp)
+
+    else:
+        self.report({'ERROR'}, 'Create at least one collection in "Set Collection" tab and add objects using "Low Poly/High Poly"')
+        
+class Export_fbx_All_LP(Operator):
+    bl_idname = "ex.fbx_lp"
+    bl_label = "Export All LP FBX"
+
+    def execute(self, context):
+            
+        exp_fbx_lp(self,context)
+        return {'FINISHED'}
+
 
 #Triangulate
 
@@ -1195,52 +1265,118 @@ def get_addon_folder():
     return s_path
 
 
+#def update_addon(self):
+#    #get raw from git
+#    url = 'https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py'
+#    
+#    response = requests.get(url, stream=True)
+
+#    addon_path = get_addon_folder()
+#    path = os.path.join(addon_path, '__init__.py')
+#    
+#    if response.status_code == 200:
+
+#        #read instaled addon init        
+#        f_path = path
+
+#        file = open(f_path, "r")
+#        
+#        inst_addon = file.read()
+#        file.close()   
+#        
+#        #read git addon init   
+#        git_addon = response.text
+
+#        
+#        t1 = inst_addon
+#        t2 = git_addon
+#        
+#        if t1 == t2:
+#            self.report({'INFO'}, 'Is the latest version')   
+#            #print('Git = Inst')
+#        else:
+#            
+#            
+#            filePath = addon_path
+
+#            
+#            newFile = open(os.path.join(filePath, "__init__UPD.py"), "w")
+#            newFile.write(git_addon)
+#            newFile.close()
+
+# 
+#            
+#            os.replace(os.path.join(filePath, "__init__UPD.py"), os.path.join(filePath, "__init__.py"))
+#            bpy.ops.script.reload()
+#            #sys.modules['Master_Instance-main'].update_addon() 
+#    else:
+#        print('Error downloading file')
+
+GITHUB_URL = "https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py"
+ADDON_MODULE = __package__  # имя текущего аддона
+
+
+def get_remote_version(text):
+    """Извлекает bl_info['version'] из текста удалённого файла."""
+    try:
+        tree = ast.parse(text)
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                if any(t.id == "bl_info" for t in node.targets if isinstance(t, ast.Name)):
+                    bl_info = ast.literal_eval(node.value)
+                    return tuple(bl_info.get("version", (0, 0, 0)))
+    except:
+        return None
+    return None
+
+
+def get_local_version():
+    """Версия текущего установленного аддона."""
+    return tuple(bpy.types.AddonPreferences.bl_rna.properties["bl_info"].fixed_default.get("version", (0, 0, 0)))
+
+
 def update_addon(self):
-    #get raw from git
-    url = 'https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py'
-    
-    response = requests.get(url, stream=True)
+    """Обновляет аддон, если доступна новая версия."""
+    try:
+        with urllib.request.urlopen(GITHUB_URL) as response:
+            git_text = response.read().decode("utf-8")
+    except Exception as e:
+        self.report({'ERROR'}, f"Download error: {e}")
+        return
 
-    addon_path = get_addon_folder()
-    path = os.path.join(addon_path, '__init__.py')
-    
-    if response.status_code == 200:
+    remote_v = get_remote_version(git_text)
+    if not remote_v:
+        self.report({'ERROR'}, "Cannot read remote version")
+        return
 
-        #read instaled addon init        
-        f_path = path
+    local_v = bpy.context.preferences.addons[ADDON_MODULE].bl_info["version"]
 
-        file = open(f_path, "r")
-        
-        inst_addon = file.read()
-        file.close()   
-        
-        #read git addon init   
-        git_addon = response.text
+    if remote_v <= local_v:
+        self.report({'INFO'}, "Latest version installed")
+        return
 
-        
-        t1 = inst_addon
-        t2 = git_addon
-        
-        if t1 == t2:
-            self.report({'INFO'}, 'Is the latest version')   
-            #print('Git = Inst')
-        else:
-            
-            
-            filePath = addon_path
+    addon_path = os.path.dirname(__file__)
+    init_path = os.path.join(addon_path, "__init__.py")
 
-            
-            newFile = open(os.path.join(filePath, "__init__UPD.py"), "w")
-            newFile.write(git_addon)
-            newFile.close()
+    try:
+        # временная запись
+        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp:
+            tmp.write(git_text)
+            temp_path = tmp.name
 
- 
-            
-            os.replace(os.path.join(filePath, "__init__UPD.py"), os.path.join(filePath, "__init__.py"))
-            bpy.ops.script.reload()
-            #sys.modules['Master_Instance-main'].update_addon() 
-    else:
-        print('Error downloading file')
+        # атомарная замена
+        os.replace(temp_path, init_path)
+
+    except Exception as e:
+        self.report({'ERROR'}, f"File write error: {e}")
+        return
+
+    # перезагрузка только текущего аддона
+    bpy.ops.preferences.addon_disable(module=ADDON_MODULE)
+    bpy.ops.preferences.addon_enable(module=ADDON_MODULE)
+
+    self.report({'INFO'}, f"Updated to version {remote_v}")
+
          
 class SETID_Addon_Updater(Operator):
     bl_idname = "setid.addon_upd"
@@ -1278,70 +1414,6 @@ class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
             )
         op.url = 'https://t.me/Mandrew3d'
 
-#Menu fbx export
-class VIEW3D_MT_fbx_settings_menu(bpy.types.Menu):
-    bl_label = "SetID FBX Settings"
-    bl_idname = "VIEW3D_MT_fbx_settings_menu"
-
-    def draw(self, context):
-        layout = self.layout
-        s = context.scene.fbx_settings
-
-        # --- PATH ---
-        layout.label(text="Filepath:")
-        layout.prop(s, "filepath", text="")
-
-        # --- SCALE ---
-        col = layout.column(align=True)
-        col.label(text="Scale:")
-        col.prop(s, "global_scale")
-        col.prop(s, "apply_unit_scale")
-        col.prop(s, "apply_scale_options")
-
-        # --- TRANSFORM ---
-        col = layout.column(align=True)
-        col.label(text="Transform:")
-        col.prop(s, "use_space_transform")
-        col.prop(s, "bake_space_transform")
-
-        # --- OBJECTS ---
-        col = layout.column(align=True)
-        col.label(text="Objects:")
-        col.prop(s, "object_types")
-
-        # --- MESH OPTIONS ---
-        col = layout.column(align=True)
-        col.label(text="Mesh Options:")
-        col.prop(s, "use_mesh_modifiers")
-        col.prop(s, "use_mesh_modifiers_render")
-        col.prop(s, "mesh_smooth_type")
-        col.prop(s, "use_subsurf")
-        col.prop(s, "use_mesh_edges")
-        col.prop(s, "use_tspace")
-        col.prop(s, "use_triangles")
-
-        # --- COLORS ---
-        col = layout.column(align=True)
-        col.label(text="Colors:")
-        col.prop(s, "colors_type")
-        col.prop(s, "prioritize_active_color")
-
-        # --- MISC ---
-        col = layout.column(align=True)
-        col.label(text="Other:")
-        col.prop(s, "use_custom_props")
-        col.prop(s, "use_metadata")
-
-        # --- AXIS ---
-        col = layout.column(align=True)
-        col.label(text="Axis Conversion:")
-        row = col.row(align=True)
-        row.prop(s, "axis_forward")
-        row.prop(s, "axis_up")
-
-        layout.separator()
-        layout.operator("export_scene.fbx_custom", text="Export FBX")
-
 #Menu Settings
 class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
     bl_label = "Set-ID Settings"
@@ -1352,7 +1424,7 @@ class VIEW3D_MT_SETID_Settings(bpy.types.Menu):
 
         scene = context.scene
 
-        layout.label(text="Settings:")
+        layout.label(text="Info:")
         
         
         layout.separator()
@@ -1374,26 +1446,26 @@ class VIEW3D_MT_SETID_SetName_Settings(bpy.types.Menu):
     def draw(self, context):
         
         layout = self.layout
-
+        
         scene = context.scene
+        
+        row = self.layout
+        row = layout.column(align=True)
+        #row = col.row(align=True)
+        row.label(text="Suffix:")
+                        
+        row.prop(scene.mesh_l, "my_lpstr", text="Low poly suffix")
+        #row = self.layout
 
-        layout.label(text="Settings:")
+        row.prop(scene.mesh_h, "my_hpstr", text="High poly suffix")
+        #row = self.layout
+
+        row.label(text="Auto:")
+        row.prop(scene.ai_b, "my_hide", text="Auto Hide")
         
+        row.prop(scene.ai_b, "my_autg", text="Auto Index ++")
         
-        layout.separator()
-        col = layout.column()
-         
-                # Mesh suffix
-        layout.label(text="Mesh suffix:")
-        split = layout.split()
-        col = split.column(align=True)
-        col.label(text="Low poly")
-        col.label(text="High poly")
-        
-        col = split.column(align=True)
-        col.prop(scene.mesh_l, "my_lpstr")
-        col.prop(scene.mesh_h, "my_hpstr")       
-                
+
 #Header 
 def SELECT_HT_collection(self, context):
     selob = bpy.context.active_object
@@ -1545,11 +1617,11 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         #col = split.column()
         col = box.column(align = True)
         row = col.row(align = True)
-        row.prop(scene.ai_b,"my_hide")
+        #row.prop(scene.ai_b,"my_hide")
         #col.label(text="")
         #col = split.column()
         #row = col.row(align = True)
-        row.prop(scene.ai_b,"my_autg")
+        #row.prop(scene.ai_b,"my_autg")
             #Attach
         #row = layout.row(align = True)
         row = box.row(align = True)
@@ -1637,16 +1709,15 @@ class SETIDC_PT_Operators(bpy.types.Panel):
             
         #layout.label(text="Export path:")
         #box = layout.box()
+        
         row = box.row(align = True)
         row.prop(scene.path_s, "exp_path") # EXPORT
         open_ep = row.operator("setid.open_folder", text = '', icon = 'WORKSPACE')
        
         open_ep.path = bpy.context.scene.path_s.exp_path
         
-        row = box.row(align = True)
-        row.operator("ex.fbx") # EXPORT
-        
-        row = box.row(align = True)
+        col = box.column(align = False)
+        row = col.row(align = True)
         #split = layout.split()
         #row = row.column()
         row.prop(scene.lp_g,"lp_gal")
@@ -1658,30 +1729,56 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         row.prop(scene.lp_g,"lp_tris")
         row.prop(scene.lp_g,"hp_tris")
 
-
-        layout.label(text="Textures path:")
-        row = layout.row(align = True)
-        row.prop(scene.path_s, "exp_pathmat") # Materials attaching
-
-        open_cp = row.operator("setid.open_folder", text = '', icon = 'WORKSPACE')
-        open_cp.path = bpy.context.scene.path_s.exp_pathmat
-                
-        # Connect
-        row = layout.row(align = True)
-        row.operator("ex.mapscon")           
-        row.operator("ex.mapsexp")
+        text_exp= 'Nothing to Export'
+        exp_name = get_active_collection_name()
         
-        # Random colors
-        layout.label(text="Randomize colors:")
-        row = layout.row(align = True)
-        row.operator("ex.randomcol")        
+        lp_exp = scene.lp_g.lp_gal
         
+        #lp_text = ''
+        row = box.row(align = True)
+        if len(get_active_collection_name()):
+            row.label(text='Will be exported:')
+            if lp_exp:
+                lp_text = 'Low Poly_' + exp_name
+                row = box.row(align = True)
+                row.label(text=lp_text)
+            hp_exp = scene.lp_g.hp_gal
+            
+            #hp_text = ''
+            if hp_exp:
+                hp_text = 'High Poly' + exp_name
+                row = box.row(align = True)
+                row.label(text=hp_text)
+        
+        if len(get_active_collection_name()):
+            text_exp= "Export"
+            
+        row = box.row(align = True)
+        row.operator("ex.fbx", text = text_exp) # EXPORT
+
+#        layout.label(text="Textures path:")
+#        row = layout.row(align = True)
+#        row.prop(scene.path_s, "exp_pathmat") # Materials attaching
+
+#        open_cp = row.operator("setid.open_folder", text = '', icon = 'WORKSPACE')
+#        open_cp.path = bpy.context.scene.path_s.exp_pathmat
+#                
+##        # Connect
+##        row = layout.row(align = True)
+##        row.operator("ex.mapscon")           
+##        row.operator("ex.mapsexp")
         # Select by
         layout.label(text="Select by:")
         col = layout.column(align = True)
         col.operator("ex.selmat") 
         #row = layout.row(align = True) 
         col.operator("setid.selbyid")          
+#        
+        # Random colors
+        layout.label(text="Randomize colors:")
+        row = layout.row(align = True)
+        row.operator("ex.randomcol")        
+        
         # Triangulate 
         layout.label(text="Triangulate:")
         #row = layout.row(align = True)
@@ -1759,7 +1856,6 @@ class SETID_Preferences(bpy.types.AddonPreferences):
                 
 classes = [
     VIEW3D_MT_SETID_SetName_Settings,
-    VIEW3D_MT_fbx_settings_menu,
     Collections_Props,
     Create_New_Collection,
     Move_Id_Collection,
@@ -1782,6 +1878,7 @@ classes = [
     Hide_named,
     Low_polystr,
     Export_fbx,
+    Export_fbx_All_LP,
     High_polystr,
     HpLP_gal,
     Path_m,
