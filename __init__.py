@@ -1268,7 +1268,7 @@ def get_addon_folder():
 
 def update_addon(self):
     #get raw from git
-    url = 'https://raw.githubusercontent.com/Mandrew3d/Low-High Poly Name Setter/main/__init__.py'
+    url = 'https://raw.githubusercontent.com/Mandrew3d/Low-High-Poly-Name-Setter/main/__init__.py'
     
     response = requests.get(url, stream=True)
 
