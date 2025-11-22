@@ -1,12 +1,12 @@
 bl_info = {
-    "name": "Set_ID",
+    "name": "Low-High Poly Name Setter",
     "author": "Mandrew3D",
-    "version": (2, 1),
+    "version": (2, 3),
     "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
     "warning": "",
-    "doc_url": "https://github.com/Mandrew3d/Set_ID",
+    "doc_url": "https://github.com/Mandrew3d/Low-High Poly Name Setter",
     "category": "Mods",
 }
 
@@ -31,7 +31,7 @@ from bpy.types import (
 
 #Slider
 class Slider(bpy.types.PropertyGroup):
-    col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=0)
+
     active_col_id : bpy.props.IntProperty(name = "Collection ID", soft_min=0, soft_max=100, default=0)
 
 
@@ -57,11 +57,6 @@ class SetID_Show_Settings(bpy.types.PropertyGroup):
     
 class FbxExportSettings(bpy.types.PropertyGroup):
 
-    # ОБЪЕКТЫ
-    #use_selection: bpy.props.BoolProperty(default=False)
-    #use_visible: bpy.props.BoolProperty(default=False)
-    #use_active_collection: bpy.props.BoolProperty(default=False)
-    #collection: bpy.props.StringProperty(default="")
 
     # МАСШТАБ
     global_scale: bpy.props.FloatProperty(default=1.0, min=0.001, max=1000.0)
@@ -177,12 +172,8 @@ def get_active_collection_name():
 
 #fbx export func
 def export_fbx(path: str, objects, use_triangulate):
-    """
-    Экспорт в FBX.
-    path    — полный путь к файлу .fbx (строка)
-    objects — итерируемая коллекция объектов для экспорта
-    Параметры экспорта берутся из bpy.context.scene.fbx_settings
-    """
+
+
     ctx = bpy.context
     scene = ctx.scene
     s = scene.fbx_settings  # напрямую
@@ -1277,7 +1268,7 @@ def get_addon_folder():
 
 def update_addon(self):
     #get raw from git
-    url = 'https://raw.githubusercontent.com/Mandrew3d/Set_ID/main/__init__.py'
+    url = 'https://raw.githubusercontent.com/Mandrew3d/Low-High Poly Name Setter/main/__init__.py'
     
     response = requests.get(url, stream=True)
 
@@ -1441,7 +1432,7 @@ def SELECT_HT_collection(self, context):
 class SETIDC_PT_Operators(bpy.types.Panel):
 
     bl_label = "Set ID"
-    bl_category = "Set-ID"
+    bl_category = "LP_HP_Name"
     bl_space_type = 'VIEW_3D'
     bl_region_type = "UI"
     #bl_context = 'objectmode'
