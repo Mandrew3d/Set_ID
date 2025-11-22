@@ -1,5 +1,5 @@
-# Blender Addon: [Set ID]
-
+# Blender Addon: Low-High-Poly-Name-Setter
+Helper for simplified LP/HP naming before export or baking.
 ## Description
 If you've ever had to manually assign names and suffixes for Low-Poly and High-Poly objects, you know how tedious it can be. Forget about the routine—this addon takes care of it for you.  
 
