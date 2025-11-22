@@ -22,7 +22,7 @@ Originally developed for personal use, it has been crafted with care to be as co
 3. Install it in Blender in one of two ways:
    - **Edit → Preferences → Add-ons → Install…**, then select the downloaded `.zip`;
    - **or simply drag and drop the `.zip` file into the Blender window**.
-4. Enable the addon in the Add-ons list.
+
 ## Example
 ![Addon Panel](images/panel.png)
 
