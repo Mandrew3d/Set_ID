@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Set_ID",
     "author": "Mandrew3D",
-    "version": (2, 0),
+    "version": (2, 1),
     "blender": (5, 0, 0),
     "location": "View3D > UI > Set-ID",
     "description": "Addon for setting ID names",
@@ -655,11 +655,11 @@ def hide_named(self, context):
     hp_col = bpy.data.collections[hp_col_name]
     lp_col = bpy.data.collections[lp_col_name]
     
-    for ob in hp_col.objects:
+    for ob in lp_col.objects:
         if  bpy.context.scene.mesh_l.my_lpstr in ob.name:
             ob.hide_set(True)
             #print(ob.name)
-    for ob in lp_col.objects:
+    for ob in hp_col.objects:
         if bpy.context.scene.mesh_h.my_hpstr in ob.name:
             ob.hide_set(True)
     
@@ -1764,7 +1764,7 @@ class SETIDC_PT_Operators(bpy.types.Panel):
         layout.label(text="Triangulated: "+ str(ismod) + "/"+ str(selcount))
         
         #Poly count
-        colname = "Low Poly_" + str(bpy.context.scene.id_slider.col_id)
+        colname = "Low Poly_" + name
         layout.label(text="Polycount of "+ str(colname) + ":" )
         tris, polys, ngones = 0,0,0
         
