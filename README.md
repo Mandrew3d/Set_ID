@@ -16,10 +16,13 @@ Originally developed for personal use, it has been crafted with care to be as co
 - **Combined Export:** You can also export all Low-Poly objects from collections into a single FBX using "Export Combined LowPoly."
 
 ## Installation
-1. Download the repository or `.zip` file.  
-2. In Blender, go to `Edit > Preferences > Add-ons > Install...`  
-3. Select the `.zip` file and enable the addon.
 
+1. Go to the **Releases** section of this repository.  
+2. Download the addon **.zip** file (do not unpack it).  
+3. Install it in Blender in one of two ways:
+   - **Edit → Preferences → Add-ons → Install…**, then select the downloaded `.zip`;
+   - **or simply drag and drop the `.zip` file into the Blender window**.
+4. Enable the addon in the Add-ons list.
 ## Example
 ![Addon Panel](images/panel.png)
 
